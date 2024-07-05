@@ -1,6 +1,7 @@
-CMD EXAMPLE:
+CMD EXAMPLE :
   - python ./optimized.py C:\Users\wmain\Downloads\main D:\replica 10 C:\Users\wmain\Desktop\log
-EDGE CASES:
+
+EDGE CASES :
   - PERMISSIONS ON FILES/DIRS
   - DIRECT MANIPULATION ON REPLICA FOLDER
 
