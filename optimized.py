@@ -126,8 +126,10 @@ def job():
     logs_manager(log_line)
     filecmp.clear_cache()
     fc = filecmp.dircmp(sys.argv[1], sys.argv[2])
-    directory_comparison_object_exists_on_source_only(fc)  # Add files unique on source to replica.
     directory_comparison_object_exists_on_replica_only(fc)  # Delete files unique on replica.
+    fc = filecmp.dircmp(sys.argv[1], sys.argv[2])
+    directory_comparison_object_exists_on_source_only(fc)  # Add files unique on source to replica.
+    fc = filecmp.dircmp(sys.argv[1], sys.argv[2])
     directory_comparison_object_exists_on_both(fc)  # Updates files that are similar but with different contents.
     scheduler.enter(int(sys.argv[3]), 1, job, ())
 
