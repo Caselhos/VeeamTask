@@ -35,13 +35,17 @@ def command_line_parsing_safety():
     try:
         open(sys.argv[4], 'a')  # Check if file is possible to open in write mode.
     except PermissionError:
-        sys.exit('YOU DO NOT HAVE PERMISSION TO WRITE FILE')
+        sys.exit('YOU DO NOT HAVE PERMISSION TO WRITE TO LOG FILE')
 
 
 def logs_manager(s):
+    #  maybe delete last file if write to log failed? to avoid missmatch?
     print(s)  # log to stdout
-    with open(sys.argv[4], 'a') as f:
-        f.write(str(s + '\n'))  # log to log file
+    try:
+        with open(sys.argv[4], 'a') as f:
+            f.write(str(s + '\n'))  # log to log file
+    except PermissionError:
+        sys.exit('PERMISSION ERROR OCCURRED ON LOG FILE')
 
 
 def directory_comparison_object_exists_on_source_only(dir_cmp):
@@ -54,10 +58,15 @@ def directory_comparison_object_exists_on_source_only(dir_cmp):
             logLine = "{} INFO - COPIED DIR {} FROM {} TO {}".format(datetime.datetime.now(), name, path_source,
                                                                      path_replica)
         else:
-            shutil.copy2(path_source, path_replica)
-            logLine = "{} INFO - COPIED FILE {} FROM {} TO {}".format(datetime.datetime.now(), name, path_source,
-                                                                      path_replica)
-        logs_manager(logLine)
+            try:
+                os.chmod(path_source, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)  # Platform dependant.
+                shutil.copy2(path_source, path_replica)
+                logLine = "{} INFO - COPIED FILE {} FROM {} TO {}".format(datetime.datetime.now(), name, path_source,
+                                                                          path_replica)
+                logs_manager(logLine)
+            except PermissionError:
+                print('file is inaccessible')
+
     for sub in dir_cmp.subdirs.values():
         directory_comparison_object_exists_on_source_only(sub)
 
@@ -92,7 +101,7 @@ def file_comparison(path_source, path_replica):
                 shutil.copy2(path_source, path_replica)
                 return True
     except FileNotFoundError:
-        print('file not found')
+        print('file not found')  # todo This could be better maybe say what happens.
 
 
 def directory_comparison_object_exists_on_both(dir_cmp):
@@ -116,8 +125,8 @@ def job():
     logs_manager(log_line)
     filecmp.clear_cache()
     fc = filecmp.dircmp(sys.argv[1], sys.argv[2])
-    directory_comparison_object_exists_on_replica_only(fc)  # Delete files unique on replica.
     directory_comparison_object_exists_on_source_only(fc)  # Add files unique on source to replica.
+    directory_comparison_object_exists_on_replica_only(fc)  # Delete files unique on replica.
     directory_comparison_object_exists_on_both(fc)  # Updates files that are similar but with different contents.
     scheduler.enter(int(sys.argv[3]), 1, job, ())
 
