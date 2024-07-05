@@ -1,3 +1,4 @@
+import concurrent
 import datetime
 import filecmp
 import shutil
@@ -7,13 +8,14 @@ import sched
 import time
 import pathlib
 import stat
+import concurrent.futures
+
 
 def context_cracking():
     if sys.platform != 'win32':
         print('WARNING - This script was designed and tested only on Windows')
     if sys.version_info.major != 3 and sys.version_info.minor != 12:
         print('WARNING - This script was designed and tested only on Python 3.12')
-
 
 
 def command_line_parsing_safety():
@@ -47,6 +49,7 @@ def directory_comparison_object_exists_on_source_only(dir_cmp):
         path_source = os.path.join(sys.argv[1], dir_cmp.left, name)
         path_replica = os.path.join(sys.argv[2], dir_cmp.right, name)
         if os.path.isdir(path_source):
+            os.chmod(path_source, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
             shutil.copytree(path_source, path_replica)
             logLine = "{} INFO - COPIED DIR {} FROM {} TO {}".format(datetime.datetime.now(), name, path_source,
                                                                      path_replica)
@@ -60,13 +63,15 @@ def directory_comparison_object_exists_on_source_only(dir_cmp):
 
 
 def redo_with_write(redo_func, path, err):  # Fixes error with readonly directories.
-    os.chmod(path, stat.S_IWRITE) # this is platform dependant. (https://docs.python.org/3/library/os.html#os.chmod)
+    os.chmod(path, stat.S_IWRITE)  # this is platform dependant. (https://docs.python.org/3/library/os.html#os.chmod)
     redo_func(path)
+
+
 def directory_comparison_object_exists_on_replica_only(dir_cmp):
     for name in dir_cmp.right_only:
         path_replica = os.path.join(sys.argv[2], dir_cmp.right, name)
         if os.path.isdir(path_replica):
-            shutil.rmtree(path_replica,onerror=redo_with_write)
+            shutil.rmtree(path_replica, onerror=redo_with_write)
             logLine = "{} INFO - DELETED DIR {} FROM {}".format(datetime.datetime.now(), name, path_replica)
         else:
             if not os.access(path_replica, os.W_OK):
@@ -78,18 +83,32 @@ def directory_comparison_object_exists_on_replica_only(dir_cmp):
         directory_comparison_object_exists_on_replica_only(sub)
 
 
-def directory_comparison_object_exists_on_both(dir_cmp):
-    for name in dir_cmp.common_files:
-        path_source = os.path.join(sys.argv[1], dir_cmp.left, name)
-        path_replica = os.path.join(sys.argv[2], dir_cmp.right, name)
+def file_comparison(path_source, path_replica):
+    try:
+        if filecmp.cmp(path_source, path_replica):  # Shallow comparison.
+            return False
+        else:
+            if not filecmp.cmp(path_source, path_replica, shallow=False):
+                shutil.copy2(path_source, path_replica)
+                return True
+    except FileNotFoundError:
+        print('file not found')
 
-        if not filecmp.cmp(path_source, path_replica, shallow=False):
-            shutil.copy2(path_source, path_replica)
-            logLine = "{} INFO - UPDATED EXISTENT FILE {} FROM {} TO {}".format(datetime.datetime.now(), name,
-                                                                                path_source, path_replica)
-            logs_manager(logLine)
-    for sub in dir_cmp.subdirs.values():
-        directory_comparison_object_exists_on_both(sub)
+
+def directory_comparison_object_exists_on_both(dir_cmp):
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = []
+        for name in dir_cmp.common_files:
+            path_source = os.path.join(sys.argv[1], dir_cmp.left, name)
+            path_replica = os.path.join(sys.argv[2], dir_cmp.right, name)
+            futures.append(executor.submit(file_comparison, path_source, path_replica))
+            for future in concurrent.futures.as_completed(futures):
+                if future.result():
+                    logLine = "{} INFO - UPDATED EXISTENT FILE {} FROM {} TO {}".format(datetime.datetime.now(), name,
+                                                                                        path_source, path_replica)
+                    logs_manager(logLine)
+        for sub in dir_cmp.subdirs.values():
+            directory_comparison_object_exists_on_both(sub)
 
 
 def job():
@@ -97,8 +116,8 @@ def job():
     logs_manager(log_line)
     filecmp.clear_cache()
     fc = filecmp.dircmp(sys.argv[1], sys.argv[2])
-    directory_comparison_object_exists_on_source_only(fc)  # Add files unique on source to replica.
     directory_comparison_object_exists_on_replica_only(fc)  # Delete files unique on replica.
+    directory_comparison_object_exists_on_source_only(fc)  # Add files unique on source to replica.
     directory_comparison_object_exists_on_both(fc)  # Updates files that are similar but with different contents.
     scheduler.enter(int(sys.argv[3]), 1, job, ())
 
@@ -108,7 +127,7 @@ if __name__ == '__main__':
     context_cracking()
     command_line_parsing_safety()
     scheduler = sched.scheduler(time.time, time.sleep)
-    scheduler.enter(int(sys.argv[3]), 1, job, ())
+    scheduler.enter(2, 1, job, ())
     try:
         scheduler.run()  # Infinite loop.
     except KeyboardInterrupt:
