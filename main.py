@@ -48,10 +48,10 @@ def logs_manager(s):
         f.write(str(s + '\n'))  # log to log file
 
 
-def directory_comparison_main_only(dircmp):
-    for name in dircmp.left_only:
-        fullpathMain = os.path.join(sys.argv[1], dircmp.left, name)
-        fullpathReplica = os.path.join(sys.argv[2], dircmp.right, name)
+def directory_comparison_object_exists_on_source_only(dir_cmp):
+    for name in dir_cmp.left_only:
+        fullpathMain = os.path.join(sys.argv[1], dir_cmp.left, name)
+        fullpathReplica = os.path.join(sys.argv[2], dir_cmp.right, name)
         if os.path.isdir(fullpathMain):
             shutil.copytree(fullpathMain, fullpathReplica)
             logLine = "{} INFO - COPIED DIR {} FROM {} TO {}".format(datetime.datetime.now(), name, fullpathMain,
@@ -61,13 +61,13 @@ def directory_comparison_main_only(dircmp):
             logLine = "{} INFO - COPIED FILE {} FROM {} TO {}".format(datetime.datetime.now(), name, fullpathMain,
                                                                       fullpathReplica)
         logs_manager(logLine)
-    for sub in dircmp.subdirs.values():
-        directory_comparison_main_only(sub)
+    for sub in dir_cmp.subdirs.values():
+        directory_comparison_object_exists_on_source_only(sub)
 
 
-def directory_comparison_replica_only(dircmp):
-    for name in dircmp.right_only:
-        fullpathReplica = os.path.join(sys.argv[2], dircmp.right, name)
+def directory_comparison_object_exists_on_replica_only(dir_cmp):
+    for name in dir_cmp.right_only:
+        fullpathReplica = os.path.join(sys.argv[2], dir_cmp.right, name)
         if os.path.isdir(fullpathReplica):
             shutil.rmtree(fullpathReplica)
             logLine = "{} INFO - DELETED DIR {} FROM {}".format(datetime.datetime.now(), name, fullpathReplica)
@@ -75,34 +75,35 @@ def directory_comparison_replica_only(dircmp):
             pathlib.Path(fullpathReplica).unlink()
             logLine = "{} INFO - DELETED FILE {} FROM {}".format(datetime.datetime.now(), name, fullpathReplica)
         logs_manager(logLine)
-    for sub in dircmp.subdirs.values():
-        directory_comparison_replica_only(sub)
+    for sub in dir_cmp.subdirs.values():
+        directory_comparison_object_exists_on_replica_only(sub)
 
 
-def directory_comparison_both(dircmp):
-    # todo compare files that have similar structures but different content
-
-    for name in dircmp.common_files:
-        fullpathMain = os.path.join(sys.argv[1], dircmp.left, name)
-        fullpathReplica = os.path.join(sys.argv[2], dircmp.right, name)
+def directory_comparison_object_exists_on_both(dir_cmp):
+    for name in dir_cmp.common_files:
+        fullpathMain = os.path.join(sys.argv[1], dir_cmp.left, name)
+        fullpathReplica = os.path.join(sys.argv[2], dir_cmp.right, name)
 
         if not filecmp.cmp(fullpathMain, fullpathReplica, shallow=False):
             shutil.copy2(fullpathMain, fullpathReplica)
             logLine = "{} INFO - UPDATED EXISTENT FILE {} FROM {} TO {}".format(datetime.datetime.now(), name,
                                                                                 fullpathMain, fullpathReplica)
             logs_manager(logLine)
-    for sub in dircmp.subdirs.values():
-        directory_comparison_both(sub)
+    for sub in dir_cmp.subdirs.values():
+        directory_comparison_object_exists_on_both(sub)
 
 
 def job():
-    logLine = "{} INFO - NEW SYNCHRONIZATION".format(datetime.datetime.now())
-    logs_manager(logLine)
+    log_line = "{} INFO - NEW SYNCHRONIZATION".format(datetime.datetime.now())
+    logs_manager(log_line)
     filecmp.clear_cache()
     fc = filecmp.dircmp(sys.argv[1], sys.argv[2])
-    directory_comparison_main_only(fc)  # FILES THAT ARE ONLY ON THE MAIN FOLDER GET SENT WITHOUT ANY TYPE OF CHECK
-    directory_comparison_replica_only(fc)  # FILES THAT ARE ONLY ON THE REPLICA FOLDER SHOULD GET DELETED
-    directory_comparison_both(fc)  # FILES THAT ARE IN BOTH FOLDERS NEED EXTENSIVE CHECK TO SEE IF THEY ARE SIMILAR
+    # FILES THAT ARE ONLY ON THE MAIN FOLDER GET SENT WITHOUT ANY TYPE OF CHECK
+    directory_comparison_object_exists_on_source_only(fc)
+    # FILES THAT ARE ONLY ON THE REPLICA FOLDER SHOULD GET DELETED
+    directory_comparison_object_exists_on_replica_only(fc)
+    # FILES THAT ARE IN BOTH FOLDERS NEED EXTENSIVE CHECK TO SEE IF THEY ARE SIMILAR
+    directory_comparison_object_exists_on_both(fc)
     scheduler.enter(int(sys.argv[3]), 1, job, ())
 
 # CURRENT PROGRAM LIMITATIONS
@@ -118,4 +119,7 @@ if __name__ == '__main__':
     command_line_parsing_safety()
     scheduler = sched.scheduler(time.time, time.sleep)
     scheduler.enter(int(sys.argv[3]), 1, job, ())
-    scheduler.run()  # this is an infinite loop
+    try:
+        scheduler.run()  # this is an infinite loop
+    except KeyboardInterrupt:
+        sys.exit(0)
