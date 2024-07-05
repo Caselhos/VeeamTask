@@ -16,28 +16,21 @@ def context_cracking():
 
 
 def command_line_parsing_safety():
-    if len(sys.argv) < 5:
-        sys.exit('number of arguments insufficient')
-    if os.path.isdir(sys.argv[1]) and os.path.isabs(sys.argv[1]):
-        print('SOURCE PATH IS A DIRECTORY AND ITS ABSOLUTE')  # main folder path
-    else:
+    if len(sys.argv) != 5:
+        sys.exit('NUMBER OF ARGUMENTS INCORRECT')
+    if not os.path.isdir(sys.argv[1]) and not os.path.isabs(sys.argv[1]):
         sys.exit('SOURCE PATH NOT UP TO REQS')
-    if os.path.isdir(sys.argv[2]) and os.path.isabs(sys.argv[2]):
-        print('REPLICA PATH IS A DIRECTORY AND ITS ABSOLUTE')  # replica folder path
-    else:
+    if not os.path.isdir(sys.argv[2]) and not os.path.isabs(sys.argv[2]):
         sys.exit('REPLICA PATH NOT UP TO REQS')
     try:
-        int(sys.argv[3])  # this is limited by 4300 digits the default
+        int(sys.argv[3])  # This is limited by 4300 digits the default.
     except ValueError as e:
         print(e)
         sys.exit('INTERVAL DEFINITION NOT UP TO REQS')
-    if os.path.isfile(sys.argv[4]) and os.path.isabs(sys.argv[4]):
-        print('LOG FILE PATH IS A FILE AND ITS ABSOLUTE')  # log file path
-    else:
+    if not os.path.isfile(sys.argv[4]) and not os.path.isabs(sys.argv[4]):
         sys.exit('LOG FILE PATH NOT UP TO REQS')
     try:
-        open(sys.argv[4], 'a')  # check if file is possible to open in write mode
-        print('FILE IS WRITABLE')
+        open(sys.argv[4], 'a')  # Check if file is possible to open in write mode.
     except PermissionError:
         sys.exit('YOU DO NOT HAVE PERMISSION TO WRITE FILE')
 
@@ -98,28 +91,19 @@ def job():
     logs_manager(log_line)
     filecmp.clear_cache()
     fc = filecmp.dircmp(sys.argv[1], sys.argv[2])
-    # FILES THAT ARE ONLY ON THE MAIN FOLDER GET SENT WITHOUT ANY TYPE OF CHECK
-    directory_comparison_object_exists_on_source_only(fc)
-    # FILES THAT ARE ONLY ON THE REPLICA FOLDER SHOULD GET DELETED
-    directory_comparison_object_exists_on_replica_only(fc)
-    # FILES THAT ARE IN BOTH FOLDERS NEED EXTENSIVE CHECK TO SEE IF THEY ARE SIMILAR
-    directory_comparison_object_exists_on_both(fc)
+    directory_comparison_object_exists_on_source_only(fc)  # Add files unique on source to replica.
+    directory_comparison_object_exists_on_replica_only(fc)  # Delete files unique on replica.
+    directory_comparison_object_exists_on_both(fc)  # Updates files that are similar but with different contents.
     scheduler.enter(int(sys.argv[3]), 1, job, ())
-
-# CURRENT PROGRAM LIMITATIONS
-# BOTH MAIN AND REPLICA FOLDER DIRECTORIES MUST EXIST (CREATED BEFORE RUNNING SCRIPT)
-# LOG FILE NEEDS TO ALREADY HAVE BEEN CREATED (CREATED BEFORE RUNNING SCRIPT)
-# ALL PATHS GIVEN TO COMMAND LINE MUST BE ABSOLUTE PATHS (IS THIS PLATFORM DEPENDENT?)
-# INTERVAL TIME NEEDS TO BE IN SECONDS AND A INTEGER
 
 
 if __name__ == '__main__':
-
+    print("STARTING TASK")
     context_cracking()
     command_line_parsing_safety()
     scheduler = sched.scheduler(time.time, time.sleep)
     scheduler.enter(int(sys.argv[3]), 1, job, ())
     try:
-        scheduler.run()  # this is an infinite loop
+        scheduler.run()  # Infinite loop.
     except KeyboardInterrupt:
         sys.exit(0)
