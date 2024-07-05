@@ -91,8 +91,8 @@ def directory_comparison_both(dircmp):
             logLine = "{} INFO - UPDATED EXISTENT FILE {} FROM {} TO {}".format(datetime.datetime.now(), name,
                                                                                 fullpathMain, fullpathReplica)
             logs_manager(logLine)
-    for sub_dcmp in dircmp.subdirs.values():
-        directory_comparison_both(sub_dcmp)
+    for sub in dircmp.subdirs.values():
+        directory_comparison_both(sub)
 
 
 def job():
@@ -110,7 +110,6 @@ def job():
 # LOG FILE NEEDS TO ALREADY HAVE BEEN CREATED (CREATED BEFORE RUNNING SCRIPT)
 # ALL PATHS GIVEN TO COMMAND LINE MUST BE ABSOLUTE PATHS (IS THIS PLATFORM DEPENDENT?)
 # INTERVAL TIME NEEDS TO BE IN SECONDS AND A INTEGER
-# THIS
 
 
 if __name__ == '__main__':
