@@ -53,14 +53,14 @@ def directory_comparison_object_exists_on_source_only(dir_cmp):
         path_source = os.path.join(sys.argv[1], dir_cmp.left, name)
         path_replica = os.path.join(sys.argv[2], dir_cmp.right, name)
         if os.path.isdir(path_source):
-            os.chmod(path_source, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+            os.chmod(path_source, stat.S_IWRITE)
             shutil.copytree(path_source, path_replica)
             logLine = "{} INFO - COPIED DIR {} FROM {} TO {}".format(datetime.datetime.now(), name, path_source,
                                                                      path_replica)
             logs_manager(logLine)
         else:
             try:
-                os.chmod(path_source, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)  # Platform dependant.
+                os.chmod(path_source, stat.S_IWRITE)  # Platform dependant.
                 shutil.copy2(path_source, path_replica)
                 logLine = "{} INFO - COPIED FILE {} FROM {} TO {}".format(datetime.datetime.now(), name, path_source,
                                                                           path_replica)
