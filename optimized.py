@@ -57,6 +57,7 @@ def directory_comparison_object_exists_on_source_only(dir_cmp):
             shutil.copytree(path_source, path_replica)
             logLine = "{} INFO - COPIED DIR {} FROM {} TO {}".format(datetime.datetime.now(), name, path_source,
                                                                      path_replica)
+            logs_manager(logLine)
         else:
             try:
                 os.chmod(path_source, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)  # Platform dependant.
@@ -64,8 +65,8 @@ def directory_comparison_object_exists_on_source_only(dir_cmp):
                 logLine = "{} INFO - COPIED FILE {} FROM {} TO {}".format(datetime.datetime.now(), name, path_source,
                                                                           path_replica)
                 logs_manager(logLine)
-            except PermissionError:
-                print('file is inaccessible')
+            except PermissionError as e:
+                print(e)
 
     for sub in dir_cmp.subdirs.values():
         directory_comparison_object_exists_on_source_only(sub)
