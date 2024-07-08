@@ -61,6 +61,7 @@ def directory_comparison_object_exists_on_source_only(dir_cmp):
                                                                              path_replica)
                     logs_manager(logLine)
                 except shutil.Error:
+                    # pass
                     print('WARNING - COPY FN RETURNED A ERROR WILL RETRY NEXT SYNC')  # file is in use most likely
 
             else:
@@ -71,10 +72,12 @@ def directory_comparison_object_exists_on_source_only(dir_cmp):
                                                                               path_replica)
                     logs_manager(logLine)
                 except PermissionError as e:
+                    # pass
                     print('WARNING - {}'.format(e))
         for sub in dir_cmp.subdirs.values():
             directory_comparison_object_exists_on_source_only(sub)
     except FileNotFoundError as e:
+        # pass
         print('WARNING - {}'.format(e))
 
 
@@ -99,8 +102,10 @@ def directory_comparison_object_exists_on_replica_only(dir_cmp):
         for sub in dir_cmp.subdirs.values():
             directory_comparison_object_exists_on_replica_only(sub)
     except FileNotFoundError as e:
+        # pass
         print('WARNING - {}'.format(e))
     except PermissionError as e:
+        # pass
         print('WARNING - {}'.format(e))
 
 
@@ -115,6 +120,7 @@ def file_comparison(path_source, path_replica, name):
                                                                                     path_source, path_replica)
                 logs_manager(logLine)
     except FileNotFoundError as e:
+        # pass
         print('WARNING - {}'.format(e))  # todo This could be better maybe say what happens.
 
 
@@ -128,7 +134,9 @@ def directory_comparison_object_exists_on_both(dir_cmp):
             for sub in dir_cmp.subdirs.values():
                 directory_comparison_object_exists_on_both(sub)
         except FileNotFoundError as e:
+            # pass
             print('WARNING - {}'.format(e))
+
 
 def job():
     log_line = "{} INFO - NEW SYNCHRONIZATION".format(datetime.datetime.now())
