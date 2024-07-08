@@ -20,22 +20,22 @@ def context_cracking():
 
 def command_line_parsing_safety():
     if len(sys.argv) != 5:
-        sys.exit('NUMBER OF ARGUMENTS INCORRECT')
+        sys.exit('ERROR - NUMBER OF ARGUMENTS INCORRECT')
     if not os.path.isdir(sys.argv[1]) and not os.path.isabs(sys.argv[1]):
-        sys.exit('SOURCE PATH NOT UP TO REQS')
+        sys.exit('ERROR - SOURCE PATH NOT UP TO REQS')
     if not os.path.isdir(sys.argv[2]) and not os.path.isabs(sys.argv[2]):
-        sys.exit('REPLICA PATH NOT UP TO REQS')
+        sys.exit('ERROR - REPLICA PATH NOT UP TO REQS')
     try:
         int(sys.argv[3])  # This is limited by 4300 digits the default.
     except ValueError as e:
         print(e)
-        sys.exit('INTERVAL DEFINITION NOT UP TO REQS')
+        sys.exit('ERROR - INTERVAL DEFINITION NOT UP TO REQS')
     if not os.path.isfile(sys.argv[4]) and not os.path.isabs(sys.argv[4]):
-        sys.exit('LOG FILE PATH NOT UP TO REQS')
+        sys.exit('ERROR - LOG FILE PATH NOT UP TO REQS')
     try:
         open(sys.argv[4], 'a')  # Check if file is possible to open in write mode.
     except PermissionError:
-        sys.exit('YOU DO NOT HAVE PERMISSION TO WRITE TO LOG FILE')
+        sys.exit('ERROR - YOU DO NOT HAVE PERMISSION TO WRITE TO LOG FILE')
 
 
 def logs_manager(s):
@@ -45,7 +45,7 @@ def logs_manager(s):
         with open(sys.argv[4], 'a') as f:
             f.write(str(s + '\n'))  # log to log file
     except PermissionError:
-        sys.exit('PERMISSION ERROR OCCURRED ON LOG FILE')
+        sys.exit('ERROR - PERMISSION ERROR OCCURRED ON LOG FILE')
 
 
 def directory_comparison_object_exists_on_source_only(dir_cmp):
@@ -57,10 +57,10 @@ def directory_comparison_object_exists_on_source_only(dir_cmp):
                 os.chmod(path_source, stat.S_IWRITE)
                 shutil.copytree(path_source, path_replica)
                 logLine = "{} INFO - COPIED DIR {} FROM {} TO {}".format(datetime.datetime.now(), name, path_source,
-                                                                     path_replica)
+                                                                         path_replica)
                 logs_manager(logLine)
-            except shutil.Error as e:
-                print('copy returned an error will continue and try on next sync')  # file is in use most likely
+            except shutil.Error:
+                print('WARNING - COPY FN RETURNED A ERROR WILL RETRY NEXT SYNC')  # file is in use most likely
 
         else:
             try:
@@ -70,7 +70,7 @@ def directory_comparison_object_exists_on_source_only(dir_cmp):
                                                                           path_replica)
                 logs_manager(logLine)
             except PermissionError as e:
-                print(e)
+                print('WARNING - {}'.format(e))
 
     for sub in dir_cmp.subdirs.values():
         directory_comparison_object_exists_on_source_only(sub)
@@ -107,8 +107,8 @@ def file_comparison(path_source, path_replica, name):
                 logLine = "{} INFO - UPDATED EXISTENT FILE {} FROM {} TO {}".format(datetime.datetime.now(), name,
                                                                                     path_source, path_replica)
                 logs_manager(logLine)
-    except FileNotFoundError:
-        print('file not found')  # todo This could be better maybe say what happens.
+    except FileNotFoundError as e:
+        print('WARNING - {}'.format(e))  # todo This could be better maybe say what happens.
 
 
 def directory_comparison_object_exists_on_both(dir_cmp):
@@ -135,7 +135,7 @@ def job():
 
 
 if __name__ == '__main__':
-    print("STARTING TASK")
+    print("INFO - STARTING TASK")
     context_cracking()
     command_line_parsing_safety()
     scheduler = sched.scheduler(time.time, time.sleep)
