@@ -60,7 +60,7 @@ def directory_comparison_object_exists_on_source_only(dir_cmp):
                                                                      path_replica)
                 logs_manager(logLine)
             except shutil.Error as e:
-                print(e)  # file is in use most likely
+                print('copy returned an error will continue and try on next sync')  # file is in use most likely
 
         else:
             try:
