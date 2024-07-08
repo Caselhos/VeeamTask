@@ -97,30 +97,26 @@ def directory_comparison_object_exists_on_replica_only(dir_cmp):
         directory_comparison_object_exists_on_replica_only(sub)
 
 
-def file_comparison(path_source, path_replica):
+def file_comparison(path_source, path_replica, name):
     try:
         if filecmp.cmp(path_source, path_replica):  # Shallow comparison.
-            return False
+            return True
         else:
             if not filecmp.cmp(path_source, path_replica, shallow=False):
                 shutil.copy2(path_source, path_replica)
-                return True
+                logLine = "{} INFO - UPDATED EXISTENT FILE {} FROM {} TO {}".format(datetime.datetime.now(), name,
+                                                                                    path_source, path_replica)
+                logs_manager(logLine)
     except FileNotFoundError:
         print('file not found')  # todo This could be better maybe say what happens.
 
 
 def directory_comparison_object_exists_on_both(dir_cmp):
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = []
         for name in dir_cmp.common_files:
             path_source = os.path.join(sys.argv[1], dir_cmp.left, name)
             path_replica = os.path.join(sys.argv[2], dir_cmp.right, name)
-            futures.append(executor.submit(file_comparison, path_source, path_replica))
-            for future in concurrent.futures.as_completed(futures):
-                if future.result():
-                    logLine = "{} INFO - UPDATED EXISTENT FILE {} FROM {} TO {}".format(datetime.datetime.now(), name,
-                                                                                        path_source, path_replica)
-                    logs_manager(logLine)
+            executor.submit(file_comparison, path_source, path_replica, name)
         for sub in dir_cmp.subdirs.values():
             directory_comparison_object_exists_on_both(sub)
 
