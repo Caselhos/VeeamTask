@@ -49,31 +49,33 @@ def logs_manager(s):
 
 
 def directory_comparison_object_exists_on_source_only(dir_cmp):
-    for name in dir_cmp.left_only:
-        path_source = os.path.join(sys.argv[1], dir_cmp.left, name)
-        path_replica = os.path.join(sys.argv[2], dir_cmp.right, name)
-        if os.path.isdir(path_source):
-            try:
-                os.chmod(path_source, stat.S_IWRITE)
-                shutil.copytree(path_source, path_replica)
-                logLine = "{} INFO - COPIED DIR {} FROM {} TO {}".format(datetime.datetime.now(), name, path_source,
-                                                                         path_replica)
-                logs_manager(logLine)
-            except shutil.Error:
-                print('WARNING - COPY FN RETURNED A ERROR WILL RETRY NEXT SYNC')  # file is in use most likely
+    try:
+        for name in dir_cmp.left_only:
+            path_source = os.path.join(sys.argv[1], dir_cmp.left, name)
+            path_replica = os.path.join(sys.argv[2], dir_cmp.right, name)
+            if os.path.isdir(path_source):
+                try:
+                    os.chmod(path_source, stat.S_IWRITE)
+                    shutil.copytree(path_source, path_replica)
+                    logLine = "{} INFO - COPIED DIR {} FROM {} TO {}".format(datetime.datetime.now(), name, path_source,
+                                                                             path_replica)
+                    logs_manager(logLine)
+                except shutil.Error:
+                    print('WARNING - COPY FN RETURNED A ERROR WILL RETRY NEXT SYNC')  # file is in use most likely
 
-        else:
-            try:
-                os.chmod(path_source, stat.S_IWRITE)  # Platform dependant.
-                shutil.copy2(path_source, path_replica)
-                logLine = "{} INFO - COPIED FILE {} FROM {} TO {}".format(datetime.datetime.now(), name, path_source,
-                                                                          path_replica)
-                logs_manager(logLine)
-            except PermissionError as e:
-                print('WARNING - {}'.format(e))
-
-    for sub in dir_cmp.subdirs.values():
-        directory_comparison_object_exists_on_source_only(sub)
+            else:
+                try:
+                    os.chmod(path_source, stat.S_IWRITE)  # Platform dependant.
+                    shutil.copy2(path_source, path_replica)
+                    logLine = "{} INFO - COPIED FILE {} FROM {} TO {}".format(datetime.datetime.now(), name, path_source,
+                                                                              path_replica)
+                    logs_manager(logLine)
+                except PermissionError as e:
+                    print('WARNING - {}'.format(e))
+        for sub in dir_cmp.subdirs.values():
+            directory_comparison_object_exists_on_source_only(sub)
+    except FileNotFoundError as e:
+        print('WARNING - {}'.format(e))
 
 
 def redo_with_write(redo_func, path, err):  # Fixes error with readonly directories.
@@ -82,19 +84,24 @@ def redo_with_write(redo_func, path, err):  # Fixes error with readonly director
 
 
 def directory_comparison_object_exists_on_replica_only(dir_cmp):
-    for name in dir_cmp.right_only:
-        path_replica = os.path.join(sys.argv[2], dir_cmp.right, name)
-        if os.path.isdir(path_replica):
-            shutil.rmtree(path_replica, onerror=redo_with_write)
-            logLine = "{} INFO - DELETED DIR {} FROM {}".format(datetime.datetime.now(), name, path_replica)
-        else:
-            if not os.access(path_replica, os.W_OK):
-                os.chmod(path_replica, stat.S_IWRITE)  # Handles if file is readonly.
-            pathlib.Path(path_replica).unlink()
-            logLine = "{} INFO - DELETED FILE {} FROM {}".format(datetime.datetime.now(), name, path_replica)
-        logs_manager(logLine)
-    for sub in dir_cmp.subdirs.values():
-        directory_comparison_object_exists_on_replica_only(sub)
+    try:
+        for name in dir_cmp.right_only:
+            path_replica = os.path.join(sys.argv[2], dir_cmp.right, name)
+            if os.path.isdir(path_replica):
+                shutil.rmtree(path_replica, onerror=redo_with_write)
+                logLine = "{} INFO - DELETED DIR {} FROM {}".format(datetime.datetime.now(), name, path_replica)
+            else:
+                if not os.access(path_replica, os.W_OK):
+                    os.chmod(path_replica, stat.S_IWRITE)  # Handles if file is readonly.
+                pathlib.Path(path_replica).unlink()
+                logLine = "{} INFO - DELETED FILE {} FROM {}".format(datetime.datetime.now(), name, path_replica)
+            logs_manager(logLine)
+        for sub in dir_cmp.subdirs.values():
+            directory_comparison_object_exists_on_replica_only(sub)
+    except FileNotFoundError as e:
+        print('WARNING - {}'.format(e))
+    except PermissionError as e:
+        print('WARNING - {}'.format(e))
 
 
 def file_comparison(path_source, path_replica, name):
@@ -113,13 +120,15 @@ def file_comparison(path_source, path_replica, name):
 
 def directory_comparison_object_exists_on_both(dir_cmp):
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        for name in dir_cmp.common_files:
-            path_source = os.path.join(sys.argv[1], dir_cmp.left, name)
-            path_replica = os.path.join(sys.argv[2], dir_cmp.right, name)
-            executor.submit(file_comparison, path_source, path_replica, name)
-        for sub in dir_cmp.subdirs.values():
-            directory_comparison_object_exists_on_both(sub)
-
+        try:
+            for name in dir_cmp.common_files:
+                path_source = os.path.join(sys.argv[1], dir_cmp.left, name)
+                path_replica = os.path.join(sys.argv[2], dir_cmp.right, name)
+                executor.submit(file_comparison, path_source, path_replica, name)
+            for sub in dir_cmp.subdirs.values():
+                directory_comparison_object_exists_on_both(sub)
+        except FileNotFoundError as e:
+            print('WARNING - {}'.format(e))
 
 def job():
     log_line = "{} INFO - NEW SYNCHRONIZATION".format(datetime.datetime.now())
